@@ -1,4 +1,4 @@
-name: CI/CD Build and Update Manifests
+name: CI/CD Docker Build and Push
 
 on:
   push:
@@ -7,70 +7,18 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    env:
-      IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/hello-app
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
-          registry: docker.io
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push image
-        uses: docker/build-push-action@v4
-        with:
-          push: true
-          tags: |
-            ${{ env.IMAGE_NAME }}:latest
-            ${{ env.IMAGE_NAME }}:${{ github.sha }}
+      - name: Build Docker image
+        run: docker build -t ofelipedd/meuapp-fastapi:latest .
 
-      - name: Prepare SSH agent for pushing to manifests repo
-        uses: webfactory/ssh-agent@v0.5.4
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      - name: Clone manifests repository
-        run: |
-          git clone ${{ secrets.MANIFESTS_REPO }} manifests
-        # MANIFESTS_REPO should be an SSH URL (git@github.com:org/hello-manifests.git)
-
-      - name: Update image tag in manifests and push branch
-        working-directory: manifests
-        env:
-          IMAGE: ${{ secrets.DOCKER_USERNAME }}/hello-app:${{ github.sha }}
-        run: |
-          git checkout -b update-image-${{ github.sha }}
-          # Replace image line in deployment (assumes 'image:' exists)
-          if grep -q "image:" deployment.yaml; then
-            sed -i "s|image: .*|image: ${IMAGE}|" deployment.yaml
-          else
-            echo "image: ${IMAGE}" >> deployment.yaml
-          fi
-          git add deployment.yaml
-          git commit -m "ci: update image to ${{ github.sha }}"
-          git push origin HEAD
-
-      - name: Create Pull Request on manifests repo
-        env:
-          MANIFESTS_PAT: ${{ secrets.MANIFESTS_PAT }}
-        run: |
-          # Create PR using GitHub API. Set MANIFESTS_REPO_API as e.g. https://api.github.com/repos/ORG/REPO
-          # The workflow assumes MANIFESTS_REPO points to git@github.com:ORG/REPO.git
-          REPO_SSH="${{ secrets.MANIFESTS_REPO }}"
-          # extract owner/repo from ssh url
-          OWNER_REPO=$(echo "$REPO_SSH" | sed -E 's|git@github.com:([^/]+/[^.]+)(.git)?||')
-          PR_TITLE="ci: update image to ${{ github.sha }}"
-          PR_BODY="Atualização automática da imagem gerada pelo workflow (sha: ${{ github.sha }})."
-          SOURCE_BRANCH="update-image-${{ github.sha }}"
-          TARGET_BRANCH="main"
-          curl -s -X POST                     -H "Authorization: token ${MANIFESTS_PAT}"                     -H "Accept: application/vnd.github+json"                     https://api.github.com/repos/${OWNER_REPO}/pulls                     -d "$(jq -n --arg t "$PR_TITLE" --arg h "$PR_BODY" --arg head "$SOURCE_BRANCH" --arg base "$TARGET_BRANCH" '{title:$t, body:$h, head:$head, base:$base}')"
+      - name: Push Docker image
+        run: docker push ofelipedd/meuapp-fastapi:latest
