@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: meuapp
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: meuapp
+  template:
+    metadata:
+      labels:
+        app: meuapp
+    spec:
+      containers:
+      - name: meuapp
+        image: sua-imagem-fastapi:latest  # Coloque aqui o nome da sua imagem no Docker Hub
+        ports:
+        - containerPort: 8000
