@@ -15,6 +15,6 @@ spec:
     spec:
       containers:
       - name: meuapp
-        image: sua-imagem-fastapi:latest  # Coloque aqui o nome da sua imagem no Docker Hub
+        image: ofelipedd/meuapp-fastapi:latest
         ports:
         - containerPort: 8000
