@@ -28,4 +28,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: ofelip/meuapp-fastapi:latest
+          tags: ofelipedd/meuapp-fastapi:latest
